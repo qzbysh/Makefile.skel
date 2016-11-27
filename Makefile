@@ -13,8 +13,8 @@ obj_dir = obj
 # The name of the executable file
 elf_name = ryuha
 
-CFLAGS := $(CFLAGS) -w -pthread -pipe
-#CPPFLAGS += -MMD -MP
+CFLAGS =
+CPPFLAGS += -MMD -MP
 
 LDFLAGS =
 LDLIBS =
@@ -39,15 +39,7 @@ $(obj_dir)/$(elf_name) : $(objs)
 $(obj_dir)/%.o : $(src_dir)/%.c | $(obj_dir)
 	$(CC) -c $(CFLAGS) $(CPPFLAGS) -o $@ $<
 
-$(obj_dir)/%.d : $(src_dir)/%.c | $(obj_dir)
-	@set -e; rm -f $@; \
-	$(CC) -MM $(CFLAGS) $(CPPFLAGS) -MT $(@:.d=.o) $< > $@.$$$$; \
-	sed 's,\($*\)\.o[ :]*,\1.o $@ : ,g' < $@.$$$$ > $@; \
-	rm -f $@.$$$$
-
-ifneq ($(MAKECMDGOALS), clean)
 -include $(deps)
-endif
 
 $(obj_dir) :
 	@echo Creating obj_dir ...
