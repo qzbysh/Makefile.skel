@@ -46,6 +46,12 @@ ifeq ($(V), true)
 endif
 
 
+suffix := $(suffix $(BIN_NAME))
+ifndef suffix
+  BIN_NAME := $(BIN_NAME).run
+endif
+
+
 # Clear built-in rules
 .SUFFIXES:
 
@@ -62,14 +68,14 @@ DEPS := $(OBJECTS:.o=.d)
 
 # Standard, non-optimized release build
 .PHONY: release
-release: dirs  $(OBJECTS) $(SUBDIRS)
+release: dirs $(OBJECTS) $(SUBDIRS)
 	@$(MAKE) $(BIN_NAME) --no-print-directory --no-builtin-rule
 	@echo "Build release end."
 
 
 # Debug build for gdb debugging
 .PHONY: debug
-debug:  dirs  $(OBJECTS) $(SUBDIRS)
+debug: dirs $(OBJECTS) $(SUBDIRS)
 	@$(MAKE) $(BIN_NAME) --no-print-directory --no-builtin-rule
 	@echo "Build debug end."
 
@@ -83,13 +89,13 @@ dirs:
 # Removes all build files
 .PHONY: clean
 clean: $(SUBDIRS)
-	@echo "Deleting $</$(BUILD_PATH)"
+	@echo "Clear [$(BIN_NAME)] build file."
 	@$(RM) -r $(BUILD_PATH)
 
 
 .PHONY: run
 run:
-	@$(BUILD_PATH)/$(BIN_NAME)
+	@./$(BUILD_PATH)/$(BIN_NAME)
 
 
 # Add dependency files, if they exist
@@ -104,25 +110,20 @@ ifdef SUBDIRS
 endif
 
 
-ifndef $(suffix $(BIN_NAME))
-  BIN_NAME := $(BIN_NAME).run
-endif
-
-
 # Link the executable
-$(basename $(BIN_NAME)).run: $(LDLIBS)
+$(basename $(BIN_NAME)).run:  $(OBJECTS) $(LDLIBS)
 	@echo "Linking: $(basename $@)"
 	$(CMD_PREFIX)$(CXX) $(LDFLAGS) -o $(BUILD_PATH)/$(basename $@) $^
 
 
 # Create a shared library
-%.so: $(LDLIBS)
+%.so:  $(OBJECTS) $(LDLIBS)
 	@echo "Create shared library: $@"
 	$(CMD_PREFIX)$(CXX) -fPIC -shared $(LDFLAGS) -o $(BUILD_PATH)/$@ $^
 
 
 # Create static library
-%.a: $(LDLIBS)
+%.a:  $(OBJECTS) $(LDLIBS)
 	@echo "Create static library: $@"
 	$(CMD_PREFIX)$(AR) $(ARFLAGS) $(BUILD_PATH)/$@ $^
 
