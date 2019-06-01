@@ -89,7 +89,7 @@ dirs:
 # Removes all build files
 .PHONY: clean
 clean: $(SUBDIRS)
-	@echo "Clear [$(BIN_NAME)] build file."
+	@echo "Clear build file of $(BIN_NAME)."
 	@$(RM) -r $(BUILD_PATH)
 
 
