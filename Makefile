@@ -19,16 +19,42 @@ VPATH := $(SRC_PATH) $(BUILD_PATH)
 # Compiler used
 # CC := gcc
 # CXX := g++
+
+# Define the installation command package
+# define run_install
+  # install -v -d /etc/h2o ~/h2o
+  # install -v -p -D *.conf /etc/h2o
+  # install -v -p -D -m 0755 $(BUILD_PATH)/$(BIN_NAME) ~/h2o
+# endef
 #### END PROJECT SETTINGS ####
 
 
 # Optionally you may move the section above to a separate config.mk file, and
 # uncomment the line below
-
 include config.mk
 
 
 # Generally should not need to edit below this line
+
+# Clear built-in rules
+.SUFFIXES:
+
+
+# Verbose option, to output compile and link commands
+# V := true
+ifeq ($(strip $(V)), true)
+  CMD_PREFIX =
+else
+  CMD_PREFIX = @
+endif
+
+
+ifeq ($(suffix $(BIN_NAME)),)
+  BIN_NAME_FULL := $(BIN_NAME).out
+else
+  BIN_NAME_FULL := $(BIN_NAME)
+endif
+
 
 # Combine compiler and linker flags
 release: export CFLAGS += -D NDEBUG -O3
@@ -38,29 +64,11 @@ debug: export CXXFLAGS += -D DEBUG  -g
 debug: ARGV := debug
 clean: ARGV := clean
 
-# Verbose option, to output compile and link commands
-V ?= false
-CMD_PREFIX := @
-ifeq ($(V), true)
-    CMD_PREFIX :=
-endif
-
-
-suffix := $(suffix $(BIN_NAME))
-ifndef suffix
-  BIN_NAME := $(BIN_NAME).run
-endif
-
-
-# Clear built-in rules
-.SUFFIXES:
-
 
 # Set the object file names, with the source directory stripped
 # from the path, and the build path prepended in its place
 OBJECTS := $(patsubst $(SRC_PATH)%.c,%.o, $(wildcard $(SRC_PATH)*.c))
 OBJECTS += $(patsubst $(SRC_PATH)%.cpp,%.o, $(wildcard $(SRC_PATH)*.cpp))
-
 
 # Set the dependency files that will be used to add header dependencies
 DEPS := $(OBJECTS:.o=.d)
@@ -68,64 +76,53 @@ DEPS := $(OBJECTS:.o=.d)
 
 # Standard, non-optimized release build
 .PHONY: release
-release: dirs $(OBJECTS) $(SUBDIRS)
-	@$(MAKE) $(BIN_NAME) --no-print-directory --no-builtin-rule
+release: $(OBJECTS) $(SUBDIRS)
+	@mkdir -p $(BUILD_PATH)
+	$(CMD_PREFIX)$(MAKE) $(BIN_NAME_FULL) --no-print-directory --no-builtin-rules
 	@echo "Build release end."
 
 
 # Debug build for gdb debugging
 .PHONY: debug
-debug: dirs $(OBJECTS) $(SUBDIRS)
-	@$(MAKE) $(BIN_NAME) --no-print-directory --no-builtin-rule
-	@echo "Build debug end."
-
-
-# Create the directories used in the build
-.PHONY: dirs
-dirs:
+debug: $(OBJECTS) $(SUBDIRS)
 	@mkdir -p $(BUILD_PATH)
+	$(CMD_PREFIX)$(MAKE) $(BIN_NAME_FULL) --no-print-directory --no-builtin-rules
+	@echo "Build debug end."
 
 
 # Removes all build files
 .PHONY: clean
 clean: $(SUBDIRS)
 	@echo "Clear build file of $(BIN_NAME)."
-	@$(RM) -r $(BUILD_PATH)
+	$(CMD_PREFIX)$(RM) -r $(BUILD_PATH)
 
 
 .PHONY: run
 run:
-	@./$(BUILD_PATH)/$(BIN_NAME)
+	$(CMD_PREFIX)./$(BUILD_PATH)/$(BIN_NAME)
 
 
-# Add dependency files, if they exist
--include $(DEPS)
+.PHONY: install
+install:
+	$(run_install)
 
 
 ifdef SUBDIRS
   .PHONY: $(SUBDIRS)
   $(SUBDIRS):
-	  @$(MAKE) -C $@ $(ARGV) --no-print-directory --no-builtin-rule
+	  $(CMD_PREFIX)$(MAKE) -C $@ $(ARGV) --no-print-directory --no-builtin-rules
 	  @echo
 endif
 
 
-# Link the executable
-$(basename $(BIN_NAME)).run:  $(OBJECTS) $(LDLIBS)
-	@echo "Linking: $(basename $@)"
-	$(CMD_PREFIX)$(CXX) $(LDFLAGS) -o $(BUILD_PATH)/$(basename $@) $^
-
-
-# Create a shared library
-%.so:  $(OBJECTS) $(LDLIBS)
-	@echo "Create shared library: $@"
-	$(CMD_PREFIX)$(CXX) -fPIC -shared $(LDFLAGS) -o $(BUILD_PATH)/$@ $^
-
-
-# Create static library
-%.a:  $(OBJECTS) $(LDLIBS)
-	@echo "Create static library: $@"
-	$(CMD_PREFIX)$(AR) $(ARFLAGS) $(BUILD_PATH)/$@ $^
+# Function used to check variables. Use on the command line:
+# make print-VARNAME
+# Useful for debugging and adding features
+d-%::
+	@echo '$*=(*)'
+	@echo '	origin = $(origin *)'
+	@echo '	flavor = $(flavor *)'
+	@echo '		value = $(value  $*)'
 
 
 # Source file rules
@@ -140,11 +137,23 @@ $(basename $(BIN_NAME)).run:  $(OBJECTS) $(LDLIBS)
 	$(CMD_PREFIX)$(CXX) $(CXXFLAGS) $(INCLUDES) -MP -MMD -c $< -o $(BUILD_PATH)/$@
 
 
-# Function used to check variables. Use on the command line:
-# make print-VARNAME
-# Useful for debugging and adding features
-d-%:
-	@echo '$*=(*)'
-	@echo '	origin = $(origin *)'
-	@echo '	flavor = $(flavor *)'
-	@echo '		value = $(value  $*)'
+# Create static library
+%.a: $(OBJECTS) $(LDLIBS)
+	@echo "Create static library: $@"
+	$(CMD_PREFIX)$(AR) $(ARFLAGS) $(BUILD_PATH)/$@ $^
+
+
+# Create a shared library
+%.so: $(OBJECTS) $(LDLIBS)
+	@echo "Create shared library: $@"
+	$(CMD_PREFIX)$(CXX) -fPIC -shared $(LDFLAGS) -o $(BUILD_PATH)/$@ $^
+
+
+# Link the executable
+%.out: $(OBJECTS) $(LDLIBS)
+	@echo "Linking: $(BIN_NAME)"
+	$(CMD_PREFIX)$(CXX) $(LDFLAGS) -o $(BUILD_PATH)/$(BIN_NAME) $^
+
+
+# Add dependency files, if they exist
+-include $(DEPS)
