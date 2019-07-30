@@ -119,7 +119,7 @@ install:
 # Removes all build files
 .PHONY: clean
 clean: $(SUBDIRS)
-	@echo "Clear build file of $(BIN_NAME)."
+	@echo "Clear build directory of $(BIN_NAME)."
 	$(CMD_PREFIX)$(RM) -r $(BUILD_DIR)
 
 
